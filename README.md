@@ -8,13 +8,13 @@ Project ini adalah sistem e-commerce berbasis **OpenCart** yang sudah dikonfigur
 
 ### Untuk Linux:
 
-* Apache (LAMP)
-* PHP 7.x / 8.x
-* MySQL / MariaDB
+- Apache (LAMP)
+- PHP 7.x / 8.x
+- MySQL / MariaDB
 
 ### Untuk Windows:
 
-* XAMPP / Laragon / WAMP
+- XAMPP / Laragon / WAMP
 
 ---
 
@@ -123,8 +123,8 @@ C:\xampp\htdocs\ecommerce-opencart
 
 ## 3. Jalankan XAMPP
 
-* Start Apache
-* Start MySQL
+- Start Apache
+- Start MySQL
 
 ---
 
@@ -194,10 +194,10 @@ http://localhost/ecommerce-opencart/upload/useradmin
 
 # ⚠️ Catatan Penting
 
-* Folder `upload/` adalah root OpenCart
-* File `database.sql` wajib diimport
-* Jika error di Linux, biasanya karena permission
-* Jika error di Windows, biasanya karena Apache/MySQL belum jalan
+- Folder `upload/` adalah root OpenCart
+- File `database.sql` wajib diimport
+- Jika error di Linux, biasanya karena permission
+- Jika error di Windows, biasanya karena Apache/MySQL belum jalan
 
 ---
 
@@ -223,5 +223,3 @@ ecommerce-opencart/
 ---
 
 # 👨‍💻 Author
-
-Rafly Ramandha Kusuma
