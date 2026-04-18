@@ -1,8 +1,3 @@
-# Config and Htaccess Files
-/upload/.htaccess
-/upload/config.php
-/upload/admin/config.php
-
 # Image Cache Files
 /upload/image/cache/*
 !/upload/image/cache/index.html
