@@ -1,10 +1,14 @@
 <fieldset>
   <legend>{{ heading_title }}</legend>
   <div class="input-group">
-    <span class="input-group-text"><i class="fa fa-credit-card"></i></span><input type="text" name="payment_method" value="{{ payment_method }}" placeholder="{{ entry_payment_method }}" id="input-payment-method" class="form-control" readonly/>
+    <span class="input-group-text"><i class="fa fa-credit-card"></i></span>
+    <input type="text" name="payment_method" value="{{ payment_method }}" 
+           placeholder="{{ entry_payment_method }}" id="input-payment-method" 
+           class="form-control" readonly/>
     <button type="button" id="button-payment-methods" class="btn btn-primary">{{ button_choose }}</button>
   </div>
   <input type="hidden" name="code" value="{{ code }}" id="input-payment-code"/>
+  <input type="hidden" name="midtrans_result" id="input-midtrans-result"/>
   <div id="error-payment-method" class="invalid-feedback"></div>
 </fieldset>
 <br/>
@@ -14,16 +18,20 @@
 </div>
 {% if text_agree %}
   <div class="form-check form-switch form-switch-lg form-check-reverse mt-3">
-    <label for="input-checkout-agree" class="form-check-label">{{ text_agree }}</label> <input type="checkbox" name="agree" value="1" id="input-checkout-agree" class="form-check-input"{% if agree %} checked{% endif %}/>
+    <label for="input-checkout-agree" class="form-check-label">{{ text_agree }}</label>
+    <input type="checkbox" name="agree" value="1" id="input-checkout-agree" 
+           class="form-check-input"{% if agree %} checked{% endif %}/>
   </div>
 {% endif %}
+
 <script type="text/javascript"><!--
+
 $('#button-payment-methods').on('click', function() {
     var element = this;
 
     chain.attach(function() {
         return $.ajax({
-            url: 'index.php?route=checkout/payment_method.getMethods&language={{ language }}',
+            url: 'index.php?route=checkout/payment_method.getSnapToken&language={{ language }}',
             dataType: 'json',
             beforeSend: function() {
                 $(element).button('loading');
@@ -40,111 +48,69 @@ $('#button-payment-methods').on('click', function() {
                 if (json['error']) {
                     $('#input-payment-method').addClass('is-invalid');
                     $('#error-payment-method').html(json['error']).addClass('d-block');
+                    return;
                 }
 
-                if (json['payment_methods']) {
-                    $('#modal-payment').remove();
+                if (json['snap_token']) {
+                    snap.pay(json['snap_token'], {
+                        onSuccess: function(result) {
+                            console.log('Payment success:', result);
 
-                    html = '<div id="modal-payment" class="modal">';
-                    html += '  <div class="modal-dialog modal-dialog-centered">';
-                    html += '    <div class="modal-content">';
-                    html += '      <div class="modal-header">';
-                    html += '        <h5 class="modal-title"><i class="fa fa-credit-card"></i> {{ text_payment_method|escape('js') }}</h5>';
-                    html += '        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>';
-                    html += '      </div>';
-                    html += '      <div class="modal-body">';
-                    html += '        <form id="form-payment-method">';
-                    html += '          <p>{{ text_payment|escape('js') }}</p>';
+                            $('#input-payment-method').val('Midtrans - ' + result.payment_type);
+                            $('#input-payment-code').val('midtrans');
+                            $('#input-midtrans-result').val(JSON.stringify(result));
 
-                    var first = true;
+                            // --- NOMOR 2 MULAI DI SINI ---
+                            // Simpan dulu ke session PHP agar OpenCart mengenali metode pembayarannya
+                            $.ajax({
+                                url: 'index.php?route=checkout/payment_method.saveMidtrans&language={{ language }}',
+                                type: 'post',
+                                data: { midtrans_result: JSON.stringify(result) },
+                                dataType: 'json',
+                                success: function(json_save) {
+                                    // Setelah session tersimpan, baru panggil confirmOrder bawaan OpenCart
+                                    $.ajax({
+                                        url: 'index.php?route=checkout/confirm.confirmOrder&language={{ language }}',
+                                        type: 'post',
+                                        dataType: 'json',
+                                        success: function(json) {
+                                            console.log('Confirm result:', json);
 
-                    for (i in json['payment_methods']) {
-                        html += '<p><strong>' + json['payment_methods'][i]['name'] + '</strong></p>';
-
-                        if (!json['payment_methods'][i]['error']) {
-                            for (j in json['payment_methods'][i]['option']) {
-                                html += '<div class="form-check">';
-
-                                var code = i + '-' + j.replaceAll('_', '-');
-
-                                html += '<input type="radio" name="payment_method" value="' + json['payment_methods'][i]['option'][j]['code'] + '" id="input-payment-method-' + code + '"';
-
-                                var method = $('#input-payment-code').val();
-
-                                if ((json['payment_methods'][i]['option'][j]['code'] == method) || (!method && first)) {
-                                    html += ' checked';
-
-                                    first = false;
+                                            if (json['redirect']) {
+                                                // Kasih jeda sedikit agar script analytics Midtrans selesai
+                                                setTimeout(function() {
+                                                    location = json['redirect'];
+                                                }, 800);
+                                            } else if (json['error']) {
+                                                $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> ' + json['error'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+                                            }
+                                        },
+                                        error: function(xhr) {
+                                            console.log('Confirm error:', xhr.responseText);
+                                        }
+                                    });
                                 }
+                            });
+                            // --- NOMOR 2 SELESAI ---
+                        },
+                        onPending: function(result) {
+                            console.log('Payment pending:', result);
 
-                                html += '/>';
-                                html += '  <label for="input-payment-method-' + code + '">' + json['payment_methods'][i]['option'][j]['name'] + '</label>';
-                                html += '</div>';
-                            }
-                        } else {
-                            html += '<div class="alert alert-danger">' + json['payment_methods'][i]['error'] + '</div>';
+                            $('#input-payment-method').val('Midtrans - Menunggu Pembayaran');
+                            $('#input-payment-code').val('midtrans');
+                            $('#input-midtrans-result').val(JSON.stringify(result));
+
+                            $('#alert').prepend('<div class="alert alert-warning alert-dismissible"><i class="fa-solid fa-clock"></i> Pembayaran pending, silakan selesaikan pembayaran Anda. <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+                        },
+                        onError: function(result) {
+                            console.log('Payment error:', result);
+
+                            $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> Pembayaran gagal, silakan coba lagi. <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
+                        },
+                        onClose: function() {
+                            console.log('Snap modal ditutup');
                         }
-                    }
-
-                    html += '          <div class="text-end">';
-                    html += '            <button type="submit" id="button-payment-method" class="btn btn-primary">{{ button_continue|escape('js') }}</button>';
-                    html += '          </div>';
-                    html += '        </form>';
-                    html += '      </div>';
-                    html += '    </div>';
-                    html += '  </div>';
-                    html += '</div>';
-
-                    $('body').append(html);
-
-                    $('#modal-payment').modal('show');
-                }
-            },
-            error: function(xhr, ajaxOptions, thrownError) {
-                console.log(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
-            }
-        });
-    });
-});
-
-$(document).on('submit', '#form-payment-method', function(e) {
-    e.preventDefault();
-
-    var element = this;
-
-    chain.attach(function() {
-        return $.ajax({
-            url: 'index.php?route=checkout/payment_method.save&language={{ language }}',
-            type: 'post',
-            data: $('#form-payment-method').serialize(),
-            dataType: 'json',
-            contentType: 'application/x-www-form-urlencoded',
-            beforeSend: function() {
-                $('#button-payment-method').button('loading');
-            },
-            complete: function() {
-                $('#button-payment-method').button('reset');
-            },
-            success: function(json) {
-                console.log(json);
-
-                if (json['redirect']) {
-                    location = json['redirect'];
-                }
-
-                if (json['error']) {
-                    $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> ' + json['error'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
-                }
-
-                if (json['success']) {
-                    $('#alert').prepend('<div class="alert alert-success alert-dismissible"><i class="fa-solid fa-circle-check"></i> ' + json['success'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
-
-                    $('#modal-payment').modal('hide');
-
-                    $('#input-payment-method').val($('input[name=\'payment_method\']:checked').parent().find('label').text());
-                    $('#input-payment-code').val($('input[name=\'payment_method\']:checked').val());
-
-                    $('#checkout-confirm').load('index.php?route=checkout/confirm.confirm&language={{ language }}');
+                    });
                 }
             },
             error: function(xhr, ajaxOptions, thrownError) {
@@ -160,7 +126,6 @@ var timer = '';
 $('#input-comment').on('keydown', function() {
     $('#button-confirm').prop('disabled', true);
 
-    // Request
     clearTimeout(timer);
 
     timer = setTimeout(function(object) {
@@ -182,13 +147,11 @@ $('#input-comment').on('keydown', function() {
 
                     if (json['error']) {
                         $('#alert').prepend('<div class="alert alert-danger alert-dismissible"><i class="fa-solid fa-circle-exclamation"></i> ' + json['error'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
-
                         $('#button-confirm').prop('disabled', false);
                     }
 
                     if (json['success']) {
                         $('#alert').prepend('<div class="alert alert-success alert-dismissible"><i class="fa-solid fa-circle-check"></i> ' + json['success'] + ' <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>');
-
                         $('#button-confirm').prop('disabled', false);
                     }
 
@@ -200,7 +163,6 @@ $('#input-comment').on('keydown', function() {
                 },
                 error: function(xhr, ajaxOptions, thrownError) {
                     $('#button-confirm').prop('disabled', false);
-
                     console.log(thrownError + "\r\n" + xhr.statusText + "\r\n" + xhr.responseText);
                 }
             });
