@@ -5,25 +5,28 @@ class PaymentMethod extends \Opencart\System\Engine\Controller {
     
     // --- TAMBAHAN: FUNGSI UNTUK MEMBACA FILE .env ---
     private function loadEnv(): void {
-        // DIR_OPENCART biasanya mengarah ke folder utama web kamu
-        $path = DIR_OPENCART . './../.env'; 
-        
-        if (file_exists($path)) {
-            $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($lines as $line) {
-                if (strpos(trim($line), '#') === 0) continue; // Abaikan komentar
-                if (strpos($line, '=') !== false) {
-                    list($name, $value) = explode('=', $line, 2);
-                    $name = trim($name);
-                    $value = trim($value);
-                    
-                    // Masukkan ke ENV PHP
-                    $_ENV[$name] = $value;
-                    putenv("{$name}={$value}");
-                }
-            }
+    $path = dirname(rtrim(DIR_OPENCART, '/')) . '/.env';
+    
+    error_log('[Midtrans] Mencari .env di: ' . $path);
+    error_log('[Midtrans] File exists: ' . (file_exists($path) ? 'YA' : 'TIDAK'));
+
+    if (!file_exists($path)) {
+        error_log('[Midtrans] .env tidak ditemukan!');
+        return;
+    }
+
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (strpos(trim($line), '#') === 0) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            $name  = trim($name);
+            $value = trim($value);
+            $_ENV[$name] = $value;
+            putenv("{$name}={$value}");
         }
     }
+}
 
     public function index(): string {
         $this->load->language('checkout/payment_method');
@@ -132,9 +135,10 @@ class PaymentMethod extends \Opencart\System\Engine\Controller {
     }
 
     public function getSnapToken(): void {
+        $this->loadEnv();
         $json = [];
         
-        $this->loadEnv();
+        
 
         if (!$this->cart->hasProducts()) {
             $json['error'] = 'Cart kosong.';
@@ -190,8 +194,14 @@ class PaymentMethod extends \Opencart\System\Engine\Controller {
         $temp_order_ref = 'SNAP-' . uniqid();
         $this->session->data['midtrans_order_ref'] = $temp_order_ref;
 
-        $server_key = trim(getenv('MIDTRANS_SERVER_KEY'));
+        $server_key = getenv('MIDTRANS_SERVER_KEY');
+		if (!$server_key) {
+            $json['error'] = 'SERVER KEY KOSONG 😭';
+            $this->response->setOutput(json_encode($json));
+            return;
+        }   
         $isProduction = (getenv('MIDTRANS_IS_PRODUCTION') === 'true');
+		error_log($server_key);
 
         $base_url = $isProduction
             ? 'https://app.midtrans.com/snap/v1/transactions'
