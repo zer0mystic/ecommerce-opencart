@@ -3,11 +3,11 @@
         'name' => 'opencart/opencart',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '4b4751d0cb166fadc014f2f15ef254b8e4ca6969',
+        'reference' => '79b2fee027b4fd6caa64b127f614dda993b763ba',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../../../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
         'aws/aws-crt-php' => array(
@@ -76,7 +76,7 @@
         'opencart/opencart' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '4b4751d0cb166fadc014f2f15ef254b8e4ca6969',
+            'reference' => '79b2fee027b4fd6caa64b127f614dda993b763ba',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../../../../',
             'aliases' => array(),
