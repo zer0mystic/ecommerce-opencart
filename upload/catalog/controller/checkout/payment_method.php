@@ -196,7 +196,7 @@ class PaymentMethod extends \Opencart\System\Engine\Controller {
 
         $server_key = getenv('MIDTRANS_SERVER_KEY');
 		if (!$server_key) {
-            $json['error'] = 'SERVER KEY KOSONG 😭';
+            $json['error'] = 'SERVER KEY KOSONG';
             $this->response->setOutput(json_encode($json));
             return;
         }   
